@@ -5,7 +5,6 @@ FROM php:8.1-apache
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
-    gettext-base \
     libzip-dev \
     libxml2-dev \
     libpng-dev \
@@ -25,16 +24,12 @@ WORKDIR /var/www/html
 # Copy application files
 COPY . /var/www/html/
 
-# Copy template Apache configuration files
-COPY 000-default.conf.template /etc/apache2/sites-available/000-default.conf.template
-COPY ports.conf.template /etc/apache2/ports.conf.template
+# Copy custom Apache configuration files
+COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY ports.conf /etc/apache2/ports.conf
 
-# Set the environment variable for the port (provided by Render)
-ENV PORT=80
-
-# Substitute environment variables in configuration files
-RUN envsubst '${PORT}' < /etc/apache2/ports.conf.template > /etc/apache2/ports.conf && \
-    envsubst '${PORT}' < /etc/apache2/sites-available/000-default.conf.template > /etc/apache2/sites-available/000-default.conf
+# Append the environment variable to envvars
+RUN echo 'export APACHE_RUN_PORT=${PORT}' >> /etc/apache2/envvars
 
 # Install Composer dependencies
 RUN composer install --no-dev --optimize-autoloader
@@ -45,8 +40,8 @@ RUN chown -R www-data:www-data /var/www/html
 # Enable Apache modules
 RUN a2enmod rewrite
 
-# Expose the port specified by the PORT environment variable
-EXPOSE ${PORT}
+# Expose the default port (optional, since Render routes to the correct port)
+EXPOSE 80
 
-# Start Apache in the foreground
+# Start Apache using apache2-foreground
 CMD ["apache2-foreground"]
